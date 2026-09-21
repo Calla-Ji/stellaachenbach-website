@@ -2,10 +2,9 @@ import { WORDMARK_GLYPHS, WORDMARK_HEIGHT } from '../data/wordmarkGlyphs'
 
 // Bends the real brand letterforms along the top of the HUD circle, instead
 // of SVG textPath on live text. Each glyph here is a real vector <path>, so
-// a per-letter rotate+translate genuinely renders — unlike the earlier
-// attempt to transform <tspan> elements, which Chromium silently ignores
-// (see AnimatedWordmark's arc mode, which had to fall back to textPath for
-// exactly this reason). Letters are laid out flat first using their true
+// a per-letter rotate+translate genuinely renders — unlike an earlier
+// attempt to transform <tspan> elements, which Chromium silently ignored.
+// Letters are laid out flat first using their true
 // advance widths (same approach as WordmarkStatic), then that flat strip is
 // wrapped onto the arc by angle so the real kerning survives the curve.
 const TOTAL_FLAT_WIDTH = WORDMARK_GLYPHS.reduce((sum, g) => sum + g.width, 0)

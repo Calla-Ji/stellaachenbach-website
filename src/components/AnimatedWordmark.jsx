@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const FULL = 'STELLA · ACHENBACH'
 const DOT_INDEX = FULL.indexOf('·')
@@ -43,20 +43,17 @@ function letterStyle({ isDot, showSolid, started, revealed }) {
   }
 }
 
-// `arcPath`, if given ({ radius, totalAngleDeg }), renders the word curved
-// along the top arc of a circle of that radius via a real SVG <textPath> —
-// the browser positions/rotates every glyph natively, so there's no manual
-// per-letter transform (which turned out not to render on <tspan> at all).
-// This mode is static/instant, not meant to be animated into — the splash
-// flight still uses the flat rendering below and simply swaps on landing.
-export function AnimatedWordmark({ id, className = '', forceSolid = false, fontSize = 120, arcPath = null }) {
+// Flat, straight-line rendering of the wordmark — used for the splash only.
+// The circle-bent version on the HUD arc is WordmarkArc.jsx, a separate
+// component built on real vector letterforms (this one still animates the
+// draw-in stroke via live <text>, which the arc version can't do).
+export function AnimatedWordmark({ id, className = '', forceSolid = false, fontSize = 120 }) {
   const [started, setStarted] = useState(false)
   const [revealed, setRevealed] = useState(false)
   const [dotBox, setDotBox] = useState(null)
   const [viewBox, setViewBox] = useState(DEFAULT_VIEW_BOX)
   const textRef = useRef(null)
   const dotRef = useRef(null)
-  const pathId = useId()
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setStarted(true))
@@ -70,7 +67,6 @@ export function AnimatedWordmark({ id, className = '', forceSolid = false, fontS
   }, [started])
 
   useEffect(() => {
-    if (arcPath) return
     let cancelled = false
     document.fonts.ready.then(() => {
       if (cancelled) return
@@ -83,7 +79,7 @@ export function AnimatedWordmark({ id, className = '', forceSolid = false, fontS
     return () => {
       cancelled = true
     }
-  }, [arcPath])
+  }, [])
 
   const textBaseStyle = {
     fontFamily: "'AG Stella', sans-serif",
@@ -93,43 +89,6 @@ export function AnimatedWordmark({ id, className = '', forceSolid = false, fontS
     strokeDasharray: DASH_LENGTH,
     strokeDashoffset: !started || forceSolid ? (started ? 0 : DASH_LENGTH) : undefined,
     animation: started && !forceSolid ? `wordmark-draw ${DRAW_DURATION_MS}ms linear infinite alternate` : 'none',
-  }
-
-  if (arcPath) {
-    const { radius = 240, totalAngleDeg = 130 } = arcPath
-    const pad = fontSize
-    const cx = radius + pad
-    const cy = radius + pad
-    const spanRad = (totalAngleDeg * Math.PI) / 180
-    const startX = cx + radius * Math.sin(-spanRad / 2)
-    const startY = cy - radius * Math.cos(-spanRad / 2)
-    const endX = cx + radius * Math.sin(spanRad / 2)
-    const endY = cy - radius * Math.cos(spanRad / 2)
-    const boxSize = 2 * (radius + pad)
-    const d = `M ${startX} ${startY} A ${radius} ${radius} 0 0 1 ${endX} ${endY}`
-
-    return (
-      <svg id={id} viewBox={`0 0 ${boxSize} ${boxSize}`} className={className} aria-label={FULL} style={{ overflow: 'visible' }}>
-        <style>{sharedKeyframes}</style>
-        <defs>
-          <path id={pathId} d={d} fill="none" />
-        </defs>
-        <text style={textBaseStyle}>
-          <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle" xmlSpace="preserve">
-            {FULL.split('').map((char, i) => {
-              const solid = SOLID_INDICES.has(i)
-              const isDot = i === DOT_INDEX
-              const showSolid = started && (forceSolid || solid || isDot)
-              return (
-                <tspan key={i} style={letterStyle({ isDot: false, showSolid, started, revealed })}>
-                  {char}
-                </tspan>
-              )
-            })}
-          </textPath>
-        </text>
-      </svg>
-    )
   }
 
   return (
