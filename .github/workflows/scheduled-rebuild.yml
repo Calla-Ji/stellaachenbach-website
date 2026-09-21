@@ -9,8 +9,9 @@ name: Scheduled Netlify rebuild
 # right after publishing a post, instead of waiting for the schedule.
 on:
   schedule:
-    # Every Monday at 06:00 UTC.
-    - cron: '0 6 * * 1'
+    # Every Wednesday at 06:00 UTC — a day after Stella's usual Tuesday
+    # publish, so a Tuesday post is reliably picked up on the next run.
+    - cron: '0 6 * * 3'
   workflow_dispatch:
 
 jobs:
