@@ -1,0 +1,361 @@
+@import "tailwindcss";
+@import "@fontsource/geist-sans/400.css";
+@import "@fontsource/geist-sans/500.css";
+@import "@fontsource/geist-sans/600.css";
+
+/* Real display/print font — the custom "AG_Stella" cut of Akzidenz-Grotesk BQ. */
+@font-face {
+  font-family: "AG Stella";
+  src: url("/fonts/AGStella-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@theme {
+  --color-supernova: #FEE6EA;
+  --color-neutron: #131718;
+  --color-pink-dwarf: #FF99D8;
+  --color-wormhole: #4E5455;
+  --color-twinkling: #E0D1D4;
+
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "AG Stella", "Arial Black", "Helvetica Neue", ui-sans-serif, sans-serif;
+}
+
+html {
+  background: var(--color-supernova);
+}
+
+body {
+  margin: 0;
+  color: var(--color-neutron);
+  font-family: var(--font-sans);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Brand rules for Paragraph-sourced article bodies (BlogPost's
+   dangerouslySetInnerHTML). Paragraph's export carries its own inline
+   classes (e.g. h2 gets "text-3xl font-header !mt-8 !mb-4 ..."). Those
+   aren't Tailwind classes we generate ourselves — Tailwind only compiles
+   utilities it finds referenced in our own source — except where the exact
+   same utility name happens to already exist in our bundle for unrelated
+   reasons (text-3xl/text-2xl both do, from page H1s elsewhere), in which
+   case Paragraph's heading silently inherits that page-title-sized rule.
+   Written here as plain, unlayered CSS rather than @layer utilities, so it
+   sits outside Tailwind's cascade layers entirely and beats any of that
+   incidental collision regardless of specificity (same trick .font-display
+   above already relies on). */
+.prose-blog p {
+  margin: 0 0 1.25em;
+}
+
+.prose-blog h2 {
+  margin: 2.5em 0 0.75em;
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: var(--color-neutron);
+}
+
+.prose-blog h3 {
+  margin: 2em 0 0.5em;
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: var(--color-pink-dwarf);
+}
+
+.prose-blog h2:first-child,
+.prose-blog h3:first-child {
+  margin-top: 0;
+}
+
+.prose-blog hr {
+  margin: 3rem 0;
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--color-neutron) 15%, transparent);
+}
+
+.prose-blog a {
+  color: var(--color-pink-dwarf);
+  text-decoration: none;
+  transition: color 150ms ease-out;
+}
+
+.prose-blog a:hover {
+  color: var(--color-neutron);
+  text-decoration: underline;
+}
+
+.prose-blog strong,
+.prose-blog b {
+  color: var(--color-neutron);
+  font-weight: 600;
+}
+
+.prose-blog blockquote {
+  margin: 0 0 2em;
+  padding: 0.25em 0 0.25em 1.25em;
+  border-left: 2px solid var(--color-pink-dwarf);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--color-neutron);
+}
+
+/* Tailwind's own preflight resets ul/ol to list-style: none globally — put
+   real markers back for prose content specifically. */
+.prose-blog ul {
+  list-style: disc;
+}
+
+.prose-blog ol {
+  list-style: decimal;
+}
+
+.prose-blog ul,
+.prose-blog ol {
+  margin: 0 0 1.25em;
+  padding-left: 1.25em;
+}
+
+.prose-blog li {
+  margin-bottom: 0.5em;
+}
+
+.prose-blog li::marker {
+  color: var(--color-pink-dwarf);
+}
+
+/* Paragraph renders emoji as literal <img>s at their native ~64px size —
+   scale to the surrounding text's own font-size instead so they sit inline
+   at the same size as whatever heading/paragraph they're part of. */
+.prose-blog .emoji {
+  display: inline-flex;
+  align-items: center;
+}
+
+.prose-blog .emoji img {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+.prose-blog figure {
+  margin: 2.5em 0;
+}
+
+.prose-blog figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid color-mix(in srgb, #fff 25%, transparent);
+  border-radius: 0.25rem;
+  box-shadow: 0 8px 20px -6px rgba(19, 23, 24, 0.18);
+}
+
+.prose-blog figcaption:not(:empty) {
+  margin-top: 0.5em;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--color-wormhole);
+}
+
+/* BlogPost.jsx swaps this in for a real <iframe> after render — this is
+   just the playback frame, sized/clipped so the embed reads as one more
+   piece of brand-consistent media rather than a bare rectangle. */
+.prose-blog [data-type="youtube"] {
+  margin: 2.5em 0;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.25rem;
+  overflow: hidden;
+  background-color: var(--color-twinkling);
+}
+
+.prose-blog [data-type="youtube"] iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Other Paragraph constructs seen across the wider blog (not present in
+   Traveling Patronage, so untested when the rest of this file was written):
+   tables, checkbox task lists, the details/summary callout, and a
+   right-floated inset image variant. */
+
+/* A right-floated figure — Paragraph sets a real max-width inline (%) but
+   only a non-functional HTML `float="right"` attribute, not CSS float. */
+.prose-blog figure.img-float-right {
+  float: right;
+  margin: 0 0 1.5em 1.5em;
+}
+
+.prose-blog table {
+  width: 100%;
+  margin: 2em 0;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.prose-blog th,
+.prose-blog td {
+  padding: 0.6em 0.9em;
+  border: 1px solid color-mix(in srgb, var(--color-neutron) 15%, transparent);
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose-blog th {
+  background-color: var(--color-twinkling);
+  font-family: var(--font-display);
+  color: var(--color-neutron);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.75rem;
+}
+
+.prose-blog td p,
+.prose-blog th p {
+  margin: 0;
+}
+
+.prose-blog td figure {
+  margin: 0;
+}
+
+/* Checkbox task list — list-style is switched off since these render their
+   own checkbox, not a bullet. */
+.prose-blog ul.task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.prose-blog .task-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5em;
+}
+
+.prose-blog .task-list-item label {
+  display: flex;
+  margin-top: 0.3em;
+}
+
+.prose-blog .task-list-item input[type="checkbox"] {
+  width: 1em;
+  height: 1em;
+  accent-color: var(--color-pink-dwarf);
+}
+
+.prose-blog .task-list-item p {
+  margin: 0;
+}
+
+/* Paragraph's "details" callout isn't a real <details>/<summary> element —
+   it's a plain div with a hardcoded "▼" and no built-in collapse behavior.
+   BlogPost.jsx adds a real click-to-collapse toggle (via the is-open class)
+   on top of this styling. */
+.prose-blog .details {
+  margin: 2em 0;
+}
+
+.prose-blog .detailsSummary {
+  margin: 0;
+  padding: 0.75em 1em;
+  border: 1px solid color-mix(in srgb, var(--color-neutron) 15%, transparent);
+  border-radius: 0.25rem;
+  font-weight: 600;
+  color: var(--color-neutron);
+  cursor: pointer;
+  user-select: none;
+}
+
+.prose-blog .detailsSummary span {
+  display: inline-block;
+  color: var(--color-pink-dwarf);
+  transition: transform 150ms ease-out;
+}
+
+.prose-blog .details:not(.is-open) .detailsSummary span {
+  transform: rotate(-90deg);
+}
+
+.prose-blog .detailsContent {
+  padding: 1em 1em 0.25em;
+  border: 1px solid color-mix(in srgb, var(--color-neutron) 15%, transparent);
+  border-top: none;
+  border-radius: 0 0 0.25rem 0.25rem;
+}
+
+.prose-blog .details:not(.is-open) .detailsContent {
+  display: none;
+}
+
+/* LinkedIn/etc. link-preview embeds ship as an empty div — all of the real
+   content (title, description, thumbnail) sits packed into a JSON `data`
+   attribute meant for Paragraph's own client-side renderer. BlogPost.jsx
+   rebuilds this markup after render; these rules style that rebuilt card. */
+.prose-blog .link-embed-card {
+  display: flex;
+  gap: 1rem;
+  margin: 2em 0;
+  padding: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-neutron) 15%, transparent);
+  border-radius: 0.25rem;
+  text-decoration: none;
+  transition: border-color 150ms ease-out;
+}
+
+.prose-blog .link-embed-card:hover {
+  border-color: var(--color-pink-dwarf);
+}
+
+.prose-blog .link-embed-thumb {
+  width: 6rem;
+  height: 6rem;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 0.25rem;
+}
+
+.prose-blog .link-embed-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.prose-blog .link-embed-provider {
+  margin: 0 0 0.25em;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-wormhole);
+}
+
+.prose-blog .link-embed-title {
+  margin: 0 0 0.25em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-weight: 600;
+  color: var(--color-neutron);
+}
+
+.prose-blog .link-embed-desc {
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 0.8125rem;
+  color: var(--color-wormhole);
+}
