@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://stellaachenbach.com/</loc></url>
+  <url><loc>https://stellaachenbach.com/about</loc></url>
+  <url><loc>https://stellaachenbach.com/imprint</loc></url>
+  <url><loc>https://stellaachenbach.com/contact</loc></url>
+  <url><loc>https://stellaachenbach.com/blog</loc></url>
+  <url><loc>https://stellaachenbach.com/worlds/traveling-patronage</loc></url>
+  <url><loc>https://stellaachenbach.com/worlds/interstellar-paradise</loc></url>
+  <url><loc>https://stellaachenbach.com/worlds/la-reina-de-la-casa</loc></url>
+  <url><loc>https://stellaachenbach.com/worlds/sea-breeze</loc></url>
+  <!-- Individual /blog/:slug posts aren't listed here — they're fetched
+       from Paragraph at runtime, so a static file can't know about them.
+       Needs a build-time (or dynamic) sitemap generation step; tracked as
+       part of the blog-specific SEO work. -->
+</urlset>

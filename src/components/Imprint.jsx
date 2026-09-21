@@ -1,6 +1,12 @@
+import { useDocumentMeta } from '../lib/useDocumentMeta'
 import { PageHeader } from './PageHeader'
 
 export function Imprint() {
+  useDocumentMeta({
+    title: 'Imprint — Stella Achenbach',
+    description: 'Legal notice and contact details for Stella Achenbach.',
+  })
+
   return (
     <section className="mx-auto max-w-3xl px-6 py-20">
       <PageHeader topic="Imprint" title="Imprint" />

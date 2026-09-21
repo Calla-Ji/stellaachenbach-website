@@ -1,6 +1,13 @@
+import { useDocumentMeta } from '../lib/useDocumentMeta'
 import { PageHeader } from './PageHeader'
 
 export function About() {
+  useDocumentMeta({
+    title: 'About — Stella Achenbach',
+    description:
+      'Stella Achenbach is a Design Alchemist whose work sits where 3D craft, game design, and decentralized systems overlap. She builds tools that help creators thrive.',
+  })
+
   return (
     <section id="about" className="mx-auto max-w-5xl px-6 py-20">
       <PageHeader topic="About" title="Stella Achenbach" />
