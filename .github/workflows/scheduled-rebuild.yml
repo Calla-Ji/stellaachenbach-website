@@ -1,0 +1,26 @@
+name: Scheduled Netlify rebuild
+
+# Netlify only rebuilds on a git push — new posts published on Paragraph
+# never touch this repo, so without this, a new post would never get its
+# prerendered SEO page (scripts/prerender-blog.mjs) until some unrelated
+# code change happened to trigger a deploy. This hits Netlify's build hook
+# on a timer instead, so the site periodically re-checks Paragraph on its
+# own. Also runnable on demand (Actions tab → this workflow → Run workflow)
+# right after publishing a post, instead of waiting for the schedule.
+on:
+  schedule:
+    # Every Monday at 06:00 UTC.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  trigger-rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Netlify build hook
+        run: |
+          if [ -z "${{ secrets.NETLIFY_BUILD_HOOK }}" ]; then
+            echo "::error::NETLIFY_BUILD_HOOK secret is not set — add it in Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          curl -sf -X POST "${{ secrets.NETLIFY_BUILD_HOOK }}"
