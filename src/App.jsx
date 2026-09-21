@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { About } from './components/About'
 import { BlogIndex } from './components/BlogIndex'
 import { BlogPost } from './components/BlogPost'
+import { ConsentBanner } from './components/ConsentBanner'
 import { Contact } from './components/Contact'
 import { Home } from './components/Home'
 import { Imprint } from './components/Imprint'
@@ -13,9 +14,32 @@ import { InterstellarParadise } from './components/worlds/InterstellarParadise'
 import { ReinaDeLaCasa } from './components/worlds/ReinaDeLaCasa'
 import { SeaBreeze } from './components/worlds/SeaBreeze'
 import { TravelingPatronageIndex } from './components/worlds/TravelingPatronageIndex'
+import { getStoredConsent, loadGoogleAnalytics, trackPageview } from './lib/analytics'
 
 function App() {
   const location = useLocation()
+  const isFirstPageview = useRef(true)
+
+  // A returning visitor who already granted consent shouldn't have to see
+  // the banner again, or lose tracking just because they landed somewhere
+  // other than Home this time — this runs once, on any route.
+  useEffect(() => {
+    if (getStoredConsent() === 'granted') loadGoogleAnalytics()
+  }, [])
+
+  // The `gtag('config', ...)` call inside loadGoogleAnalytics already sends
+  // one automatic pageview for whichever route was live when it fired —
+  // react-router never triggers a real navigation after that, so every
+  // subsequent route change needs its own explicit event or GA only ever
+  // sees a single page per visit.
+  useEffect(() => {
+    if (isFirstPageview.current) {
+      isFirstPageview.current = false
+      return
+    }
+    trackPageview(location.pathname)
+  }, [location.pathname])
+
   // Set only when a link inside the app navigated here explicitly carrying
   // a background to restore (see HudCategoryPanel/TravelingPatronageIndex) —
   // a direct/deep link to the exact same URL has no such state, so it just
@@ -62,6 +86,7 @@ function App() {
           </Routes>
         </GlassOverlay>
       )}
+      <ConsentBanner />
     </div>
   )
 }
