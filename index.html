@@ -6,6 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#FEE6EA" />
 
+    <!-- scripts/prerender-blog.mjs replaces the SEO:START..SEO:END block
+         below with per-post title/description/canonical/OG/Twitter/JSON-LD
+         for each generated dist/blog/<slug>/index.html. Everything else in
+         this file (favicon, viewport, asset tags) is shared as-is. -->
+    <!-- SEO:START -->
     <title>Stella Achenbach — Design Alchemist</title>
     <meta
       name="description"
@@ -51,9 +56,17 @@
         "url": "https://stellaachenbach.com"
       }
     </script>
+    <!-- SEO:END -->
   </head>
   <body>
-    <div id="root"></div>
+    <!-- scripts/prerender-blog.mjs injects a brand-styled static snapshot
+         of the post (category, title, hero image, body) between the
+         PRERENDER:START/END markers below, for each generated file. React
+         still fully replaces this on mount (main.jsx uses createRoot, not
+         hydrateRoot) — it's purely for whatever sees the page before/
+         without JS: crawlers, link-preview bots, slow connections. Left
+         empty in the normal built index.html. -->
+    <div id="root"><!-- PRERENDER:START --><!-- PRERENDER:END --></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Netlify serves a matching static file first (e.g. the prerendered
+# dist/blog/<slug>/index.html files) before ever checking redirects — this
+# only catches everything else, so client-side routes (react-router) still
+# resolve on a direct load or refresh instead of 404ing.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
