@@ -26,7 +26,7 @@ export function HudCategoryPanel({ label, align = 'left', links = [], direction 
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="font-display text-base font-medium uppercase tracking-[0.2em] text-pink-dwarf"
+        className="font-display text-base font-medium uppercase tracking-[0.2em] text-neutron transition-colors hover:text-pink-dwarf"
       >
         {`// ${label}`}
       </button>
