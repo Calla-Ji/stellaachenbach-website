@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { HUD_MENU_ITEMS } from '../data/hudMenu'
+import { useHudScale } from '../lib/useHudScale'
 import { ArcText } from './ArcText'
 import { HudCategoryPanel } from './HudCategoryPanel'
 import { HudFrame } from './HudFrame'
@@ -23,8 +24,28 @@ const TAGLINE_REVEAL_MS = 660
 const MENU_REVEAL_DELAY_MS = 1700
 const MENU_REVEAL_MS = 528
 
+// NOVA's 1x size — kept in lockstep with the HUD circle's own hudScale (see
+// useHudScale) so the two stay proportional at every breakpoint.
+const NOVA_BASE_SIZE = 504
+// The circle's center-gap width in the interrupted line below, at hudScale
+// 1x (60% of the circle's 560px diameter) — also scaled by hudScale so the
+// line always meets the circle's edge instead of overshooting into it or
+// leaving a visible seam outside it.
+const LINE_GAP_BASE_WIDTH = 336
+
 export function Hero({ revealed = true }) {
   const [novaState, setNovaState] = useState('greeting')
+  // The HUD circle's own responsive scale — shared with WordmarkFlight
+  // (see that file) so the splash's flying letters always land exactly on
+  // top of the real wordmark here, at whatever size it's currently
+  // rendered at.
+  const hudScale = useHudScale()
+  // NOVA renders into a real WebGL canvas (react-three-fiber measures its
+  // container's actual post-transform box), so it can't just ride along
+  // inside the CSS-scaled wrapper below like the SVG/text pieces do —
+  // measuring a transformed box feeds a shrunk size back into the renderer
+  // and it comes out doubly small. It gets its own real pixel size instead.
+  const novaSize = NOVA_BASE_SIZE * hudScale
 
   // Gated on `revealed`, not mount — NOVA itself stays hidden until well
   // after click, so its greeting pose shouldn't already be spent by the
@@ -44,24 +65,28 @@ export function Hero({ revealed = true }) {
   })
 
   return (
-    <section id="landing" className="relative h-full px-10 py-8">
-      <div className="absolute left-10 top-10" style={menuStyle(-60)}>
+    <section id="landing" className="relative h-full px-4 py-6 sm:px-10 sm:py-8">
+      <div className="absolute left-4 top-4 sm:left-10 sm:top-10" style={menuStyle(-60)}>
         <HudCategoryPanel label={topLeft.label} links={topLeft.links} align="left" />
       </div>
-      <div className="absolute right-10 top-10" style={menuStyle(60)}>
+      <div className="absolute right-4 top-4 sm:right-10 sm:top-10" style={menuStyle(60)}>
         <HudCategoryPanel label={topRight.label} links={topRight.links} align="right" />
       </div>
-      <div className="absolute bottom-10 left-10" style={menuStyle(-60)}>
+      <div className="absolute bottom-4 left-4 sm:bottom-10 sm:left-10" style={menuStyle(-60)}>
         <HudCategoryPanel label={bottomLeft.label} links={bottomLeft.links} align="left" direction="up" />
       </div>
-      <div className="absolute bottom-10 right-10" style={menuStyle(60)}>
+      <div className="absolute bottom-4 right-4 sm:bottom-10 sm:right-10" style={menuStyle(60)}>
         <HudCategoryPanel label={bottomRight.label} links={bottomRight.links} align="right" direction="up" />
       </div>
 
       {/* Interrupted horizontal line, Starfield-style — full width edge to
           edge, broken only by a gap that lets each segment run 40% of the
           circle's radius into the circle itself. Each half draws in from
-          the outer screen edge inward toward the gap. */}
+          the outer screen edge inward toward the gap. The gap's width
+          shrinks in lockstep with the circle's own responsive scale below
+          (336px is 60% of the circle's 560px diameter at 1x) so the line
+          still meets the circle's edge instead of overshooting into it or
+          leaving a visible seam outside it. */}
       <div className="pointer-events-none absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center">
         <span
           className="h-px flex-1 bg-neutron"
@@ -71,7 +96,7 @@ export function Hero({ revealed = true }) {
             transition: `transform ${LINE_DRAW_MS}ms ease-out`,
           }}
         />
-        <div className="shrink-0" style={{ width: 336 }} />
+        <div className="shrink-0" style={{ width: LINE_GAP_BASE_WIDTH * hudScale }} />
         <span
           className="h-px flex-1 bg-neutron"
           style={{
@@ -84,42 +109,54 @@ export function Hero({ revealed = true }) {
 
       <div className="flex h-full flex-col items-center justify-center">
         <div className="relative flex items-center justify-center">
-          <HudFrame size={560} bottomGapAngleDeg={90} revealed={revealed} />
-          <NovaScene state={novaState} size={504} revealed={revealed} />
-          {/* Real brand letterforms bent along the circle's own (now
-              interrupted) line, replacing the old live-text textPath
-              version — same radius/size footprint as before. This is the
-              landing target the splash's WordmarkFlight flies its letters
-              onto, so it has to stay invisible until that flight actually
-              finishes — otherwise it just sits here fully formed the whole
-              time, visible underneath (and duplicating) the flying letters
-              the moment the background curtain clears. */}
+          <NovaScene state={novaState} size={novaSize} revealed={revealed} />
+          {/* The circle + wordmark + tagline scale down as one unit on small
+              screens — a pure visual transform, not a re-render at a smaller
+              intrinsic size, so every internal position/radius/stroke stays
+              in the exact same proportion to each other as the original
+              design. Filling the same box as NOVA via inset-0 and scaling
+              around its own center keeps everything concentric with NOVA at
+              every breakpoint. */}
           <div
-            className="pointer-events-none absolute left-1/2 top-1/2 w-[596px] -translate-x-1/2 -translate-y-1/2"
-            style={{
-              opacity: revealed ? 1 : 0,
-              transition: `opacity 0ms linear ${WORDMARK_FLIGHT_TOTAL_MS}ms`,
-            }}
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            style={{ transform: `scale(${hudScale})`, transformOrigin: 'center' }}
           >
-            <WordmarkArc id="hud-wordmark" radius={268} offsetY={6} className="w-full" />
-          </div>
-          <div
-            className="pointer-events-none absolute left-1/2 top-1/2 w-[596px] -translate-x-1/2 -translate-y-1/2"
-            style={{
-              opacity: revealed ? 1 : 0,
-              transform: revealed ? 'scale(1)' : 'scale(0.9)',
-              transformOrigin: 'center',
-              transition: `opacity ${TAGLINE_REVEAL_MS}ms ease-out ${TAGLINE_REVEAL_DELAY_MS}ms, transform ${TAGLINE_REVEAL_MS}ms ease-out ${TAGLINE_REVEAL_DELAY_MS}ms`,
-            }}
-          >
-            <ArcText
-              text="Design Alchemist — Tools · Worlds · Systems"
-              radius={284}
-              pad={14}
-              totalAngleDeg={130}
-              position="bottom"
-              className="w-full"
-            />
+            <HudFrame size={560} bottomGapAngleDeg={90} revealed={revealed} />
+            {/* Real brand letterforms bent along the circle's own (now
+                interrupted) line, replacing the old live-text textPath
+                version — same radius/size footprint as before. This is the
+                landing target the splash's WordmarkFlight flies its letters
+                onto, so it has to stay invisible until that flight actually
+                finishes — otherwise it just sits here fully formed the whole
+                time, visible underneath (and duplicating) the flying letters
+                the moment the background curtain clears. */}
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 w-[596px] -translate-x-1/2 -translate-y-1/2"
+              style={{
+                opacity: revealed ? 1 : 0,
+                transition: `opacity 0ms linear ${WORDMARK_FLIGHT_TOTAL_MS}ms`,
+              }}
+            >
+              <WordmarkArc id="hud-wordmark" radius={268} offsetY={6} className="w-full" />
+            </div>
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 w-[596px] -translate-x-1/2 -translate-y-1/2"
+              style={{
+                opacity: revealed ? 1 : 0,
+                transform: revealed ? 'scale(1)' : 'scale(0.9)',
+                transformOrigin: 'center',
+                transition: `opacity ${TAGLINE_REVEAL_MS}ms ease-out ${TAGLINE_REVEAL_DELAY_MS}ms, transform ${TAGLINE_REVEAL_MS}ms ease-out ${TAGLINE_REVEAL_DELAY_MS}ms`,
+              }}
+            >
+              <ArcText
+                text="Design Alchemist — Tools · Worlds · Systems"
+                radius={284}
+                pad={14}
+                totalAngleDeg={130}
+                position="bottom"
+                className="w-full"
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -53,7 +53,6 @@ export function AnimatedWordmark({ id, className = '', forceSolid = false, fontS
   const [dotBox, setDotBox] = useState(null)
   const [viewBox, setViewBox] = useState(DEFAULT_VIEW_BOX)
   const textRef = useRef(null)
-  const dotRef = useRef(null)
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setStarted(true))
@@ -70,10 +69,17 @@ export function AnimatedWordmark({ id, className = '', forceSolid = false, fontS
     let cancelled = false
     document.fonts.ready.then(() => {
       if (cancelled) return
-      if (dotRef.current) setDotBox(dotRef.current.getBBox())
       if (textRef.current) {
         const b = textRef.current.getBBox()
         setViewBox(`${b.x - STROKE_PAD} ${b.y - STROKE_PAD} ${b.width + STROKE_PAD * 2} ${b.height + STROKE_PAD * 2}`)
+        // Deliberately not tspan.getBBox() on the dot's own <tspan> — Safari/
+        // WebKit returns the whole parent <text>'s box for any tspan that
+        // has no explicit x/y of its own (Chromium correctly scopes it to
+        // just that glyph), which centers the dot on the entire wordmark
+        // instead of between the two words. getExtentOfChar is scoped to a
+        // single character consistently across engines.
+        const dot = textRef.current.getExtentOfChar(DOT_INDEX)
+        setDotBox({ x: dot.x, y: dot.y, width: dot.width, height: dot.height })
       }
     })
     return () => {
@@ -107,7 +113,7 @@ export function AnimatedWordmark({ id, className = '', forceSolid = false, fontS
           const isDot = i === DOT_INDEX
           const showSolid = started && (forceSolid || solid)
           return (
-            <tspan key={i} ref={isDot ? dotRef : null} style={letterStyle({ isDot, showSolid, started, revealed })}>
+            <tspan key={i} style={letterStyle({ isDot, showSolid, started, revealed })}>
               {char}
             </tspan>
           )

@@ -54,7 +54,7 @@ function TopicDropdown({ topics, value, onChange }) {
         ref={buttonRef}
         type="button"
         onClick={toggleOpen}
-        className="flex w-32 items-center justify-between gap-1.5 rounded-[4px] border border-neutron/20 bg-supernova/60 px-3 py-1.5 text-xs uppercase tracking-[0.1em] text-neutron focus:border-neutron/40 focus:outline-none"
+        className="flex w-24 items-center justify-between gap-1.5 rounded-[4px] border border-neutron/20 bg-supernova/60 px-2.5 py-1.5 text-xs uppercase tracking-[0.1em] text-neutron focus:border-neutron/40 focus:outline-none sm:w-32 sm:px-3"
       >
         {value || 'All Topics'}
         <svg
@@ -153,21 +153,21 @@ export function Nav() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-white/25 bg-white/24 backdrop-blur-[8px]">
-      <div className="flex w-full items-center justify-between gap-6 px-10 py-4">
+      <div className="flex w-full items-center justify-between gap-2 px-4 py-4 sm:gap-6 sm:px-10">
         <NavLink
           to={isBlogPost ? '/blog' : '/'}
-          className="font-display shrink-0 text-base font-medium uppercase tracking-[0.2em] text-pink-dwarf transition-colors hover:text-neutron"
+          className="font-display shrink-0 text-sm font-medium uppercase tracking-[0.15em] text-pink-dwarf transition-colors hover:text-neutron sm:text-base sm:tracking-[0.2em]"
         >
           {isBlogPost ? '// Back' : '// Home'}
         </NavLink>
 
         {isBlogIndex && (
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <TopicDropdown topics={topics} value={topic} onChange={setTopic} />
             <button
               type="button"
               onClick={() => setSubscribeOpen(true)}
-              className="font-display rounded-[4px] border border-neutron bg-supernova px-4 py-1.5 text-xs uppercase tracking-[0.1em] text-neutron transition-colors hover:bg-neutron hover:text-supernova"
+              className="font-display shrink-0 rounded-[4px] border border-neutron bg-supernova px-2.5 py-1.5 text-xs uppercase tracking-[0.05em] text-neutron transition-colors hover:bg-neutron hover:text-supernova sm:px-4 sm:tracking-[0.1em]"
             >
               Subscribe
             </button>

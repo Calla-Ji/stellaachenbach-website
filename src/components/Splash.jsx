@@ -46,12 +46,33 @@ export function Splash({ onEnter, onDone }) {
   const [hovering, setHovering] = useState(false)
   const [wordmarkSourceRect, setWordmarkSourceRect] = useState(null)
   const [taglineFlight, setTaglineFlight] = useState(null)
+  const [taglineFontSize, setTaglineFontSize] = useState(14)
   const wordmarkRef = useRef(null)
   const taglineRef = useRef(null)
 
   useEffect(() => {
     const taglineTimer = setTimeout(() => setTaglineIn(true), TAGLINE_DELAY_MS)
     return () => clearTimeout(taglineTimer)
+  }, [])
+
+  // The wordmark button scales fluidly with the viewport (plain `w-full`,
+  // no breakpoints) all the way up to its own max-w-6xl cap — the tagline
+  // below it needs to track that same live width instead of sitting at a
+  // constant size, or it visibly stops shrinking with the logo on narrow
+  // screens. 14px is what the tagline was already tuned to look like at
+  // max-w-6xl's 1152px cap, so that ratio is what keeps the two in lockstep
+  // below the cap too, not just above it — down to TAGLINE_MIN_PX, where
+  // literal proportion would otherwise shrink it past legible.
+  const TAGLINE_MIN_PX = 8
+  useEffect(() => {
+    const el = wordmarkRef.current
+    if (!el) return
+    const TAGLINE_PX_PER_WORDMARK_PX = 14 / 1152
+    const observer = new ResizeObserver(([entry]) => {
+      setTaglineFontSize(Math.max(TAGLINE_MIN_PX, entry.contentRect.width * TAGLINE_PX_PER_WORDMARK_PX))
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
   }, [])
 
   useEffect(() => {
@@ -108,8 +129,9 @@ export function Splash({ onEnter, onDone }) {
         <div className="overflow-hidden py-1">
           <p
             ref={taglineRef}
-            className="text-sm uppercase tracking-[0.2em] text-wormhole"
+            className="whitespace-nowrap uppercase tracking-[0.2em] text-wormhole"
             style={{
+              fontSize: taglineFontSize,
               opacity: taglineIn || flying ? 1 : 0,
               transform: flying
                 ? (taglineFlight ?? 'none')
