@@ -121,7 +121,13 @@ export function Hero({ revealed = true }) {
             className="pointer-events-none absolute inset-0 flex items-center justify-center"
             style={{ transform: `scale(${hudScale})`, transformOrigin: 'center' }}
           >
-            <HudFrame size={560} bottomGapAngleDeg={90} revealed={revealed} />
+            {/* strokeWidth compensates for the wrapper's own scale(hudScale)
+                above — the arc's stroke gets visually shrunk by that same
+                transform along with everything else, so without this it
+                renders thinner than the horizontal line below (a plain
+                fixed 1px div, outside this wrapper, unaffected by hudScale)
+                at every breakpoint except desktop (hudScale 1). */}
+            <HudFrame size={560} bottomGapAngleDeg={90} revealed={revealed} strokeWidth={1 / hudScale} />
             {/* Real brand letterforms bent along the circle's own (now
                 interrupted) line, replacing the old live-text textPath
                 version — same radius/size footprint as before. This is the

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { WORDMARK_GLYPHS, WORDMARK_HEIGHT } from '../data/wordmarkGlyphs'
 import { useHudScale } from '../lib/useHudScale'
 
@@ -10,13 +10,23 @@ import { useHudScale } from '../lib/useHudScale'
 // straight linear timing — a brisk, evenly-paced "typewriter" feel, no
 // randomness, no overshoot.
 //
+// Driven by a single requestAnimationFrame loop that writes each letter's
+// transform straight to the DOM every frame, rather than 16 independent CSS
+// transitions. Confirmed on a real iPhone (frame-by-frame analysis of screen
+// recordings, in both Safari and Chromium) that 16 simultaneously
+// transitioning SVG elements is too much compositing work for a mobile GPU
+// to render intermediate frames for — the letters just snapped straight to
+// their landed position regardless of paint-timing fixes (double rAF,
+// forced reflow) or `will-change: transform`. A JS-driven loop sidesteps
+// that: every frame it does render reflects genuinely elapsed real time, so
+// even a device that only manages a handful of frames during the ~1.1s
+// flight still shows real in-between motion instead of an instant jump.
+//
 // Mirrors Hero's WordmarkArc placement exactly (radius/targetWidth/offsetY,
 // each scaled by the same useHudScale factor Hero itself applies to its
 // circle) so the letters land pixel-identical to what's already sitting
 // underneath once the splash fades away, at whatever size the HUD circle
-// currently renders at — without this, the flight lands at the old
-// desktop-only radius while the real (possibly shrunk) wordmark sits
-// somewhere else entirely.
+// currently renders at.
 const BASE_ARC_RADIUS = 268
 const BASE_ARC_TARGET_WIDTH = 331
 const BASE_ARC_OFFSET_Y = 6
@@ -49,6 +59,10 @@ const LETTER_ANGLES = WORDMARK_GLYPHS.map((glyph) => {
   return { glyph, flatOffsetFromCenter, angleRad, angleDeg }
 })
 
+function letterTransform(x, y, rotate, scale, glyphWidth) {
+  return `translate(${x}, ${y}) rotate(${rotate}) scale(${scale}) translate(${-glyphWidth / 2}, ${-WORDMARK_HEIGHT})`
+}
+
 // `sourceRect` is the flat wordmark's own on-screen box at the moment of
 // click ({ centerX, bottom, width }) — flight starts exactly there, so
 // there's no pop when this takes over from the live-text loop. `bottom`
@@ -57,96 +71,97 @@ const LETTER_ANGLES = WORDMARK_GLYPHS.map((glyph) => {
 // their bounding-box floor is a much closer stand-in for the true baseline
 // than the box's vertical middle would be.
 export function WordmarkFlight({ sourceRect, onDone }) {
-  const [landed, setLanded] = useState(false)
-  // Landing target and viewBox default to window.innerWidth/Height until
-  // measured, then get replaced with the real rendered rects below — on
-  // mobile Safari, `window.innerHeight` doesn't reliably match the actual
-  // rendered height of a `100vh`/`fixed inset-0` layout (the well-known
-  // mobile-Safari-vs-100vh mismatch, driven by the address bar showing or
-  // hiding), so computing the landing center from it can be visibly off —
-  // measuring the real elements sidesteps that entirely, and matches why
-  // Chromium (which handles this viewport case more consistently) landed
-  // in the right spot while Safari didn't, even though both dropped the
-  // per-letter animation frames the same way.
-  const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight })
-  const [center, setCenter] = useState({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
   const hudScale = useHudScale()
-  const rootRef = useRef(null)
-
-  useLayoutEffect(() => {
-    if (rootRef.current) {
-      const svgRect = rootRef.current.getBoundingClientRect()
-      setViewport({ width: svgRect.width, height: svgRect.height })
-    }
-    const landingEl = document.getElementById('landing')
-    if (landingEl) {
-      const landingRect = landingEl.getBoundingClientRect()
-      setCenter({ x: landingRect.left + landingRect.width / 2, y: landingRect.top + landingRect.height / 2 })
-    }
-    // A double rAF alone (the usual fix for this) still wasn't enough on a
-    // real iOS Simulator/device — confirmed by disabling NOVA entirely and
-    // recording the actual device screen: the HUD circle's own draw-in
-    // (driven by a plain prop, no rAF at all) animated fine right next to
-    // these letters snapping instantly, so it's specifically about how this
-    // freshly-mounted overlay's first paint gets scheduled on that engine,
-    // not about anything else competing for the main thread. Forcing a
-    // synchronous layout read (a plain rAF races the engine's own paint
-    // scheduling, which apparently isn't reliable here; reading a layout
-    // property forces the browser to actually flush and compute the current
-    // — flat, unlanded — styles right now, giving the transition below a
-    // real "before" state no matter how any engine schedules its paints).
-    if (rootRef.current) void rootRef.current.getBoundingClientRect()
-    const raf = requestAnimationFrame(() => setLanded(true))
-    const timer = setTimeout(() => onDone?.(), WORDMARK_FLIGHT_TOTAL_MS)
-    return () => {
-      cancelAnimationFrame(raf)
-      clearTimeout(timer)
-    }
-  }, [onDone])
+  const pathRefs = useRef([])
 
   const flatScale = sourceRect.width / TOTAL_FLAT_WIDTH
   const arcRadius = BASE_ARC_RADIUS * hudScale
   const arcScale = BASE_ARC_SCALE * hudScale
   const arcOffsetY = BASE_ARC_OFFSET_Y * hudScale
 
+  useLayoutEffect(() => {
+    // Measures the real rendered `#landing` box rather than trusting
+    // window.innerWidth/innerHeight — mobile Safari's window.innerHeight
+    // doesn't reliably match the actual rendered height of a 100vh/fixed
+    // layout (depends on whether the address bar happens to be shown or
+    // hidden right then), which previously landed the flight in the wrong
+    // spot on Safari specifically while Chromium (which handles this more
+    // consistently) landed correctly.
+    const landingEl = document.getElementById('landing')
+    const landingRect = landingEl
+      ? landingEl.getBoundingClientRect()
+      : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight }
+    const centerX = landingRect.left + landingRect.width / 2
+    const centerY = landingRect.top + landingRect.height / 2
+
+    const letters = LETTER_ANGLES.map(({ glyph, flatOffsetFromCenter, angleRad, angleDeg }, i) => {
+      const arcX = arcRadius * Math.sin(angleRad)
+      const arcY = -arcRadius * Math.cos(angleRad) + arcOffsetY
+      return {
+        glyph,
+        startX: sourceRect.centerX + flatOffsetFromCenter * flatScale,
+        startY: sourceRect.bottom,
+        startRotate: 0,
+        startScale: flatScale,
+        endX: centerX + arcX,
+        endY: centerY + arcY,
+        endRotate: angleDeg,
+        endScale: arcScale,
+        delayMs: i * STAGGER_MS,
+      }
+    })
+
+    const startTime = performance.now()
+    let rafId
+
+    function tick(now) {
+      const elapsed = now - startTime
+      letters.forEach((letter, i) => {
+        const el = pathRefs.current[i]
+        if (!el) return
+        const progress = Math.min(1, Math.max(0, (elapsed - letter.delayMs) / LETTER_DURATION_MS))
+        const x = letter.startX + (letter.endX - letter.startX) * progress
+        const y = letter.startY + (letter.endY - letter.startY) * progress
+        const rotate = letter.startRotate + (letter.endRotate - letter.startRotate) * progress
+        const scale = letter.startScale + (letter.endScale - letter.startScale) * progress
+        el.setAttribute('transform', letterTransform(x, y, rotate, scale, letter.glyph.width))
+      })
+
+      if (elapsed < WORDMARK_FLIGHT_TOTAL_MS) {
+        rafId = requestAnimationFrame(tick)
+      } else {
+        onDone?.()
+      }
+    }
+
+    rafId = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafId)
+    // Deliberately runs once per mount, not on every hudScale/sourceRect
+    // change — this component only ever mounts once per splash click and
+    // the whole flight is over in ~1.1s, so reacting to a mid-flight resize
+    // would just restart it oddly rather than improve anything.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
-    <svg
-      ref={rootRef}
-      className="pointer-events-none fixed inset-0 z-50"
-      width="100%"
-      height="100%"
-      viewBox={`0 0 ${viewport.width} ${viewport.height}`}
-      style={{ overflow: 'visible' }}
-    >
-      {LETTER_ANGLES.map(({ glyph, flatOffsetFromCenter, angleRad, angleDeg }, i) => {
-        const arcX = arcRadius * Math.sin(angleRad)
-        const arcY = -arcRadius * Math.cos(angleRad) + arcOffsetY
-        const x = landed ? center.x + arcX : sourceRect.centerX + flatOffsetFromCenter * flatScale
-        const y = landed ? center.y + arcY : sourceRect.bottom
-        const rotate = landed ? angleDeg : 0
-        const scale = landed ? arcScale : flatScale
-        return (
-          <path
-            key={i}
-            d={glyph.d}
-            fill="var(--color-neutron)"
-            transform={`translate(${x}, ${y}) rotate(${rotate}) scale(${scale}) translate(${-glyph.width / 2}, ${-WORDMARK_HEIGHT})`}
-            style={{
-              transition: `transform ${LETTER_DURATION_MS}ms linear ${i * STAGGER_MS}ms`,
-              // Pre-promotes each letter to its own GPU layer so the browser
-              // can move it via the compositor instead of repainting on the
-              // main thread every frame — 16 simultaneously-transitioning
-              // elements is enough compositing work that mobile GPUs can
-              // drop every intermediate frame without this, making a real,
-              // correctly-configured transition look like an instant jump
-              // (confirmed on a real iPhone in both Safari and Chromium —
-              // desktop testing never reproduced it, only real mobile
-              // hardware showed the dropped frames).
-              willChange: 'transform',
-            }}
-          />
-        )
-      })}
+    <svg className="pointer-events-none fixed inset-0 z-50" width="100%" height="100%" style={{ overflow: 'visible' }}>
+      {LETTER_ANGLES.map(({ glyph, flatOffsetFromCenter }, i) => (
+        <path
+          key={i}
+          ref={(el) => {
+            pathRefs.current[i] = el
+          }}
+          d={glyph.d}
+          fill="var(--color-neutron)"
+          transform={letterTransform(
+            sourceRect.centerX + flatOffsetFromCenter * flatScale,
+            sourceRect.bottom,
+            0,
+            flatScale,
+            glyph.width,
+          )}
+        />
+      ))}
     </svg>
   )
 }

@@ -118,7 +118,7 @@ function HudDotLink({ dcx, dcy, onLeftSide, link, hovered, revealed, revealDelay
   )
 }
 
-export function HudFrame({ size = 560, gapAngleDeg = 80, bottomGapAngleDeg = gapAngleDeg, revealed = true }) {
+export function HudFrame({ size = 560, gapAngleDeg = 80, bottomGapAngleDeg = gapAngleDeg, revealed = true, strokeWidth = 1 }) {
   const [hoveredAngle, setHoveredAngle] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
@@ -182,8 +182,8 @@ export function HudFrame({ size = 560, gapAngleDeg = 80, bottomGapAngleDeg = gap
           <stop offset="100%" stopColor="var(--color-pink-dwarf)" stopOpacity="0" />
         </radialGradient>
       </defs>
-      <path id="hud-circle-right" d={rightArcD} fill="none" stroke="var(--color-neutron)" style={arcDrawStyle} />
-      <path id="hud-circle-left" d={leftArcD} fill="none" stroke="var(--color-neutron)" style={arcDrawStyle} />
+      <path id="hud-circle-right" d={rightArcD} fill="none" stroke="var(--color-neutron)" strokeWidth={strokeWidth} style={arcDrawStyle} />
+      <path id="hud-circle-left" d={leftArcD} fill="none" stroke="var(--color-neutron)" strokeWidth={strokeWidth} style={arcDrawStyle} />
       {dotAngles.map((angle) => {
         const rad = (angle * Math.PI) / 180
         const dcx = cx + r * Math.cos(rad)
