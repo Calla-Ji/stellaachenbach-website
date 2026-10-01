@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useHasHover } from '../lib/useHasHover'
 
 // The Starfield-style circular readout frame — built from our own hairline
 // stroke language (Neutron on Supernova), not a borrowed sci-fi skin.
@@ -42,6 +43,41 @@ const dotPingKeyframes = `
   }
 `
 
+// How long each periodic auto-reveal blink stays visible, and the full
+// cycle (gap + blink) between them.
+const AUTO_REVEAL_VISIBLE_MS = 2200
+const AUTO_REVEAL_CYCLE_MS = 9000
+
+// Touch devices never fire hover, so the "// About" / "// Imprint" labels
+// (otherwise only shown on hover) would never be discoverable at all on
+// mobile — nothing hints at what the pulsing dot even is. Rather than
+// permanently showing the label (which was tried and didn't feel right),
+// both dots periodically blink their label on their own, reusing the exact
+// same hover-reveal styling/transitions on a timer instead of a mouse
+// event. Skipped entirely on devices that do support hover, since the
+// real hover reveal already covers the use case there.
+function useAutoRevealDots(enabled) {
+  const [autoRevealed, setAutoRevealed] = useState(false)
+  const hasHover = useHasHover()
+
+  useEffect(() => {
+    if (!enabled || hasHover) return
+
+    let hideTimeout
+    const interval = setInterval(() => {
+      setAutoRevealed(true)
+      hideTimeout = setTimeout(() => setAutoRevealed(false), AUTO_REVEAL_VISIBLE_MS)
+    }, AUTO_REVEAL_CYCLE_MS)
+
+    return () => {
+      clearInterval(interval)
+      clearTimeout(hideTimeout)
+    }
+  }, [enabled, hasHover])
+
+  return autoRevealed
+}
+
 // The label sits right on top of the full-width horizontal line, so its
 // backing patch — sized to the label's own measured ink, not a guessed
 // box — has to actually paint over that line rather than just fading it,
@@ -51,7 +87,18 @@ function HudDotLink({ dcx, dcy, onLeftSide, link, hovered, revealed, revealDelay
   const [box, setBox] = useState(null)
 
   useEffect(() => {
-    if (textRef.current) setBox(textRef.current.getBBox())
+    // Waits for the real "AG Stella" font to finish loading before
+    // measuring — measuring against the fallback font's metrics (which can
+    // differ in width) leaves this sized for text that's about to reflow,
+    // so the backing patch doesn't fully cover the line once the real font
+    // swaps in.
+    let cancelled = false
+    document.fonts.ready.then(() => {
+      if (!cancelled && textRef.current) setBox(textRef.current.getBBox())
+    })
+    return () => {
+      cancelled = true
+    }
   }, [link.label])
 
   const pad = 3
@@ -93,26 +140,28 @@ function HudDotLink({ dcx, dcy, onLeftSide, link, hovered, revealed, revealDelay
           animation: hovered ? 'none' : 'hud-dot-pulse 1.8s ease-in-out infinite',
         }}
       />
-      {/* Same "// Label" convention as the quadrant menus, revealed right
-          beside the dot instead of a separate panel. */}
+      {/* Revealed toward the circle's interior rather than out past its
+          edge — plain label, no "// " prefix, since that convention reads
+          fine as a lone quadrant-menu header but felt crowded this close
+          to the dot itself. */}
       <text
         ref={textRef}
-        x={onLeftSide ? dcx - 16 : dcx + 16}
+        x={onLeftSide ? dcx + 16 : dcx - 16}
         y={dcy}
-        textAnchor={onLeftSide ? 'end' : 'start'}
+        textAnchor={onLeftSide ? 'start' : 'end'}
         dominantBaseline="middle"
         style={{
           fontFamily: "'AG Stella', sans-serif",
           fontSize: 15,
           letterSpacing: '0.2em',
           textTransform: 'uppercase',
-          fill: 'var(--color-pink-dwarf)',
+          fill: 'var(--color-neutron)',
           opacity: hovered ? 1 : 0,
-          transform: `translateX(${hovered ? 0 : onLeftSide ? 6 : -6}px)`,
+          transform: `translateX(${hovered ? 0 : onLeftSide ? -6 : 6}px)`,
           transition: 'opacity 200ms ease, transform 200ms ease',
         }}
       >
-        {`// ${link.label}`}
+        {link.label}
       </text>
     </g>
   )
@@ -120,6 +169,7 @@ function HudDotLink({ dcx, dcy, onLeftSide, link, hovered, revealed, revealDelay
 
 export function HudFrame({ size = 560, gapAngleDeg = 80, bottomGapAngleDeg = gapAngleDeg, revealed = true, strokeWidth = 1 }) {
   const [hoveredAngle, setHoveredAngle] = useState(null)
+  const autoRevealed = useAutoRevealDots(revealed)
   const navigate = useNavigate()
   const location = useLocation()
   const r = size / 2 - 2
@@ -197,7 +247,7 @@ export function HudFrame({ size = 560, gapAngleDeg = 80, bottomGapAngleDeg = gap
             dcy={dcy}
             onLeftSide={angle === 180}
             link={link}
-            hovered={hoveredAngle === angle}
+            hovered={hoveredAngle === angle || autoRevealed}
             revealed={revealed}
             revealDelayMs={dotRevealDelayMs}
             onEnter={() => setHoveredAngle(angle)}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useHasHover } from '../lib/useHasHover'
 
 const STAGGER_MS = 70
 
@@ -10,6 +11,13 @@ const STAGGER_MS = 70
 // slide in one after another, staggered by index.
 export function HudCategoryPanel({ label, align = 'left', links = [], direction = 'down' }) {
   const [open, setOpen] = useState(false)
+  // Hover-to-open is desktop-only — on touch, the first tap on the button
+  // below fires a synthetic mouseenter (opening it) immediately followed by
+  // the click (which then toggles it straight back closed), so it took two
+  // taps to actually open. Skipping the hover handlers entirely on devices
+  // without real hover leaves the button's own click-toggle as the only
+  // thing driving `open`, which just works on the first tap.
+  const hasHover = useHasHover()
   const alignClass = align === 'right' ? 'items-end text-right' : 'items-start text-left'
   // 'up' panels keep the label anchored where it is and unfold the rule +
   // links above it instead of below — column-reverse puts the first DOM
@@ -20,13 +28,15 @@ export function HudCategoryPanel({ label, align = 'left', links = [], direction 
   return (
     <div
       className={`flex ${colClass} gap-1.5 ${alignClass}`}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      onMouseEnter={hasHover ? () => setOpen(true) : undefined}
+      onMouseLeave={hasHover ? () => setOpen(false) : undefined}
     >
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="font-display text-base font-medium uppercase tracking-[0.2em] text-neutron transition-colors hover:text-pink-dwarf"
+        className={`font-display text-base font-medium uppercase tracking-[0.2em] transition-colors hover:text-pink-dwarf ${
+          open ? 'text-pink-dwarf' : 'text-neutron'
+        }`}
       >
         {`// ${label}`}
       </button>
