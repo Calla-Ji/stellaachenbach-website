@@ -109,10 +109,14 @@ function PinnedPost({ post, excerpt }) {
   const categoryText = category ? `// ${category}` : ''
 
   return (
-    <div className="relative block h-[70vh] min-h-[420px] w-full overflow-hidden">
-      {post.imageUrl && (
-        <img src={post.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-      )}
+    <div className="relative block min-h-[420px] w-full overflow-hidden">
+      {/* Natural width/height, not a fixed-height object-cover box — the
+          box's own height used to be tied to viewport height (70vh) while
+          its width tracked the container, so the crop got more aggressive
+          the narrower the window got. Letting the image set its own height
+          here means it's always shown in full, proportionally, at any
+          width. */}
+      {post.imageUrl && <img src={post.imageUrl} alt={title} className="block w-full" />}
       <div
         className="absolute inset-0"
         style={{ background: 'linear-gradient(90deg, rgba(19,23,24,0.92) 0%, rgba(19,23,24,0.65) 32%, rgba(19,23,24,0.05) 65%, rgba(19,23,24,0) 100%)' }}
