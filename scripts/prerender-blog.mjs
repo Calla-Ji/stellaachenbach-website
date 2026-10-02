@@ -14,9 +14,13 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { formatDate } from '../src/lib/formatDate.js'
 import { getBlogPost, listBlogPosts } from '../src/lib/paragraphApi.js'
 import { splitCategoryFromTitle } from '../src/lib/postTitle.js'
 import { SITE_URL } from '../src/lib/useDocumentMeta.js'
+
+const BLOG_INDEX_TITLE = 'Blog — Stella Achenbach'
+const BLOG_INDEX_DESCRIPTION = 'Writing on design, technology, and the projects in between.'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const DIST_DIR = path.join(__dirname, '..', 'dist')
@@ -103,6 +107,90 @@ function buildBodySnapshot({ category, title, subtitle, image, staticHtml }) {
     <!-- PRERENDER:END -->`
 }
 
+// The blog index was the one top-level route with no static snapshot at
+// all — unlike individual posts, it only ever got its real title/content
+// after client JS ran, so non-JS crawlers and social-preview bots saw the
+// generic homepage SEO tags for /blog, and Google's own two-pass indexing
+// (raw HTML first, JS-rendered content later) meant it lagged behind every
+// other page in actually getting indexed.
+function buildBlogIndexHead(entries) {
+  const url = `${SITE_URL}/blog`
+  const safeTitle = escapeHtml(BLOG_INDEX_TITLE)
+  const safeDescription = escapeHtml(BLOG_INDEX_DESCRIPTION)
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: BLOG_INDEX_TITLE,
+    description: BLOG_INDEX_DESCRIPTION,
+    url,
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: entries.map((entry, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        url: entry.url,
+        name: entry.title,
+      })),
+    },
+  }
+
+  return `<!-- SEO:START -->
+    <title>${safeTitle}</title>
+    <meta name="description" content="${safeDescription}" />
+    <link rel="canonical" href="${url}" />
+
+    <meta property="og:site_name" content="Stella Achenbach" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${url}" />
+    <meta property="og:title" content="${safeTitle}" />
+    <meta property="og:description" content="${safeDescription}" />
+    <meta property="og:image" content="${DEFAULT_OG_IMAGE}" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="${safeTitle}" />
+    <meta name="twitter:description" content="${safeDescription}" />
+    <meta name="twitter:image" content="${DEFAULT_OG_IMAGE}" />
+
+    <script type="application/ld+json">${JSON.stringify(jsonLd)}</script>
+    <!-- SEO:END -->`
+}
+
+// Real `<a>` links to every post, not just a sitemap entry — gives crawlers
+// an actual on-page path to each post from the index, the same way a real
+// visitor would find them, rather than relying on the sitemap alone.
+function buildBlogIndexBody(entries) {
+  const rows = entries
+    .map(
+      ({ url, category, title, publishedAt, image, description }) => `
+      <a href="${url}" class="flex items-start gap-5 border-b border-neutron/10 py-6">
+        ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" class="aspect-[2/1] w-[12.1rem] shrink-0 rounded object-cover" />` : ''}
+        <div class="flex min-w-0 flex-1 flex-col">
+          <p class="font-display mb-1.5 flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] text-wormhole">
+            ${category ? `<span class="text-pink-dwarf">// ${escapeHtml(category)}</span>` : ''}
+            <span>${publishedAt ? formatDate(publishedAt) : ''}</span>
+          </p>
+          <h2 class="font-display mb-2 text-base uppercase tracking-tight text-neutron">${escapeHtml(title)}</h2>
+          ${description ? `<p class="text-sm leading-relaxed text-wormhole">${escapeHtml(description)}</p>` : ''}
+        </div>
+      </a>`,
+    )
+    .join('\n')
+
+  return `<!-- PRERENDER:START -->
+    <section class="mx-auto max-w-3xl px-6 py-20">
+      <div class="mb-10">
+        <p class="font-display mb-2 text-base uppercase tracking-[0.2em] text-pink-dwarf">// Blog</p>
+        <h1 class="font-display mb-4 text-3xl uppercase tracking-tight text-neutron">Blog</h1>
+        <p class="max-w-2xl text-sm leading-relaxed text-wormhole">${escapeHtml(BLOG_INDEX_DESCRIPTION)}</p>
+      </div>
+      <div>${rows}</div>
+    </section>
+    <!-- PRERENDER:END -->`
+}
+
 async function updateSitemap(postEntries) {
   const sitemapPath = path.join(DIST_DIR, 'sitemap.xml')
   const existing = await readFile(sitemapPath, 'utf8')
@@ -131,6 +219,7 @@ async function main() {
   console.log(`Prerendering ${posts.length} blog post(s)...`)
 
   const sitemapEntries = []
+  const indexEntries = []
   let failures = 0
 
   for (const post of posts) {
@@ -164,6 +253,7 @@ async function main() {
       await writeFile(path.join(outDir, 'index.html'), html)
 
       sitemapEntries.push({ url, publishedAt: full.publishedAt })
+      indexEntries.push({ url, category, title, publishedAt: full.publishedAt, image: full.imageUrl, description })
     } catch (err) {
       failures++
       console.error(`Blog prerender: skipping "${post.slug}" (fetch failed).`, err)
@@ -171,8 +261,17 @@ async function main() {
   }
 
   await updateSitemap(sitemapEntries)
+
+  indexEntries.sort((a, b) => Number(b.publishedAt) - Number(a.publishedAt))
+  const indexHtml = template
+    .replace(SEO_BLOCK_RE, buildBlogIndexHead(indexEntries))
+    .replace(PRERENDER_MARKER, buildBlogIndexBody(indexEntries))
+  const blogDir = path.join(DIST_DIR, 'blog')
+  await mkdir(blogDir, { recursive: true })
+  await writeFile(path.join(blogDir, 'index.html'), indexHtml)
+
   console.log(
-    `Done — wrote ${sitemapEntries.length}/${posts.length} static blog page(s), updated sitemap.xml.` +
+    `Done — wrote ${sitemapEntries.length}/${posts.length} static blog page(s) plus the blog index, updated sitemap.xml.` +
       (failures ? ` ${failures} post(s) skipped due to fetch errors.` : ''),
   )
 }
