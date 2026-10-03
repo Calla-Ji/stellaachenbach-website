@@ -1,5 +1,17 @@
+import { Link } from 'react-router-dom'
 import { useDocumentMeta } from '../lib/useDocumentMeta'
 import { PageHeader } from './PageHeader'
+
+// Blog first and in brand pink — everything else is just "find her
+// elsewhere," the blog is the one she actually wants read. "·" as the
+// separator matches the same convention already used in the wordmark
+// ("STELLA · ACHENBACH") and tagline ("Tools · Worlds · Systems").
+const EXTERNAL_LINKS = [
+  { label: 'LinkedIn', href: 'https://www.linkedin.com/in/stella-achenbach/' },
+  { label: 'YouTube', href: 'https://www.youtube.com/@stellaachenbach' },
+  { label: 'Instagram', href: 'https://www.instagram.com/stellaachenbach/' },
+  { label: 'TikTok', href: 'https://www.tiktok.com/@stellaachenbach' },
+]
 
 export function About() {
   useDocumentMeta({
@@ -29,6 +41,29 @@ export function About() {
           same question her tools answer in software. She teaches the process publicly, live and unedited, from
           Lima.
         </p>
+      </div>
+      <div className="mb-10 flex flex-wrap items-center gap-x-2 gap-y-1 font-display text-sm uppercase tracking-[0.15em]">
+        <Link
+          to="/blog"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-pink-dwarf transition-colors hover:text-neutron"
+        >
+          Blog
+        </Link>
+        {EXTERNAL_LINKS.map(({ label, href }) => (
+          <span key={label} className="flex items-center gap-x-2">
+            <span className="text-wormhole">·</span>
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-wormhole transition-colors hover:text-pink-dwarf"
+            >
+              {label}
+            </a>
+          </span>
+        ))}
       </div>
       <div className="grid grid-cols-1 gap-8 sm:grid-cols-2">
         <div className="overflow-hidden rounded-[4px] border border-white/25 shadow-[0_8px_20px_-6px_rgba(19,23,24,0.18)]">
