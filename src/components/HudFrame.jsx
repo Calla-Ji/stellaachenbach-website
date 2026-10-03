@@ -82,7 +82,7 @@ function useAutoRevealDots(enabled) {
 // backing patch — sized to the label's own measured ink, not a guessed
 // box — has to actually paint over that line rather than just fading it,
 // since the line and the dot's hover state live in separate components.
-function HudDotLink({ dcx, dcy, onLeftSide, link, hovered, revealed, revealDelayMs, onEnter, onLeave, onClick }) {
+function HudDotLink({ dcx, dcy, onLeftSide, link, hovered, revealed, revealDelayMs, onEnter, onLeave, onClick, centerX, lineGapHalfWidth }) {
   const textRef = useRef(null)
   const [box, setBox] = useState(null)
 
@@ -102,6 +102,26 @@ function HudDotLink({ dcx, dcy, onLeftSide, link, hovered, revealed, revealDelay
   }, [link.label])
 
   const pad = 3
+  // The label starts 16 units away from the dot (see the <text> below), so
+  // a patch sized to just the text's own bbox leaves two real gaps in the
+  // horizontal line uncovered: one between the dot and where the text
+  // starts (fixed by extending the near edge back to the dot's own center
+  // — safe to overlap it, since the dot is drawn after this rect and
+  // always renders on top), and a second, easy-to-miss one on the FAR
+  // side — Hero's own line is only actually absent inside a gap centered
+  // on the circle (`lineGapHalfWidth` from center; see Hero.jsx's
+  // LINE_GAP_BASE_WIDTH), which sits well past where a short label like
+  // "About" ends, leaving a stray stretch of real line visible between the
+  // end of the word and where the line genuinely stops existing. Extending
+  // the far edge out to that same boundary (never *in* past the text
+  // itself, via max/min) closes that too, regardless of label length.
+  const farEdgeX = onLeftSide ? centerX - lineGapHalfWidth : centerX + lineGapHalfWidth
+  const rectX = box ? (onLeftSide ? dcx : Math.min(box.x - pad, farEdgeX)) : null
+  const rectWidth = box
+    ? onLeftSide
+      ? Math.max(box.x + box.width + pad, farEdgeX) - dcx
+      : dcx - rectX
+    : null
 
   return (
     <g style={{ pointerEvents: 'auto', cursor: 'pointer' }} onMouseEnter={onEnter} onMouseLeave={onLeave} onClick={onClick}>
@@ -109,9 +129,9 @@ function HudDotLink({ dcx, dcy, onLeftSide, link, hovered, revealed, revealDelay
       <circle cx={dcx} cy={dcy} r="16" fill="transparent" />
       {box && (
         <rect
-          x={box.x - pad}
+          x={rectX}
           y={box.y - pad}
-          width={box.width + pad * 2}
+          width={rectWidth}
           height={box.height + pad * 2}
           fill="var(--color-supernova)"
           style={{ opacity: hovered ? 1 : 0, transition: 'opacity 200ms ease' }}
@@ -175,6 +195,12 @@ export function HudFrame({ size = 560, gapAngleDeg = 80, bottomGapAngleDeg = gap
   const r = size / 2 - 2
   const cx = size / 2
   const cy = size / 2
+  // Half-width of the horizontal line's own center gap, in this same
+  // unscaled coordinate space — must stay in sync with Hero.jsx's
+  // LINE_GAP_BASE_WIDTH (336, i.e. 60% of the circle's 560px diameter at
+  // 1x), since the dot labels' backing patches (below) need to know
+  // exactly where that line actually stops existing to fully cover it.
+  const lineGapHalfWidth = size * 0.3
   // The two stitchholes sit exactly where the circle crosses the
   // horizontal line (its left/right points, 180°/0° in this convention).
   const dotAngles = [180, 0]
@@ -253,6 +279,8 @@ export function HudFrame({ size = 560, gapAngleDeg = 80, bottomGapAngleDeg = gap
             onEnter={() => setHoveredAngle(angle)}
             onLeave={() => setHoveredAngle(null)}
             onClick={() => navigate(link.path, { state: { backgroundLocation: location } })}
+            centerX={cx}
+            lineGapHalfWidth={lineGapHalfWidth}
           />
         )
       })}
