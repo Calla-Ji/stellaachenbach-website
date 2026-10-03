@@ -156,7 +156,7 @@ export function BlogPost() {
         {post.imageUrl && (
           <img
             src={post.imageUrl}
-            alt=""
+            alt={title}
             className="mb-10 w-full rounded-[4px] border border-white/25 shadow-[0_8px_20px_-6px_rgba(19,23,24,0.18)]"
           />
         )}

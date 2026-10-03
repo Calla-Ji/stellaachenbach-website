@@ -82,7 +82,7 @@ export function BlogIndex() {
             return (
               <div key={post.id} className="flex items-start gap-5 py-6 first:pt-6">
                 {post.imageUrl && (
-                  <img src={post.imageUrl} alt="" className="aspect-[2/1] w-[12.1rem] shrink-0 rounded object-cover sm:w-[15.4rem]" />
+                  <img src={post.imageUrl} alt={title} className="aspect-[2/1] w-[12.1rem] shrink-0 rounded object-cover sm:w-[15.4rem]" />
                 )}
                 <div className="flex min-w-0 flex-1 flex-col self-stretch">
                   <p className="font-display mb-1.5 flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] text-wormhole">

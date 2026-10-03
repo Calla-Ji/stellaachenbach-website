@@ -33,7 +33,7 @@ export function BlogPostCard({ slug }) {
       {post.imageUrl && (
         <img
           src={post.imageUrl}
-          alt=""
+          alt={title}
           className="aspect-[2/1] w-[12.1rem] shrink-0 rounded object-cover sm:w-[15.4rem]"
         />
       )}
